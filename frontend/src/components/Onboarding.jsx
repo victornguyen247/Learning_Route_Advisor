@@ -4,8 +4,8 @@ import { Rocket, Loader2 } from 'lucide-react';
 
 const API_BASE = 'http://localhost:8000';
 
-export default function Onboarding({ onSuccess }) {
-  const [username, setUsername] = useState('');
+export default function Onboarding({ onSuccess, initialUsername }) {
+  const [username, setUsername] = useState(initialUsername || '');
   const [goal, setGoal] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -29,35 +29,37 @@ export default function Onboarding({ onSuccess }) {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-slate-950">
-      <div className="w-full max-w-md p-8 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl">
-        <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 mb-4 bg-blue-500/10 rounded-2xl">
-            <Rocket className="w-8 h-8 text-blue-400" />
+    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-[#fdfaf3] paper-texture">
+      <div className="w-full max-w-md p-10 bg-white border border-[#dee2e6] rounded-[2.5rem] shadow-2xl animate-in zoom-in duration-700">
+        <div className="mb-10 text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 mb-6 bg-slate-900 rounded-2xl shadow-lg ring-8 ring-slate-50">
+            <Rocket className="w-8 h-8 text-white" />
           </div>
-          <h2 className="text-3xl font-extrabold text-white">Start Your Journey</h2>
-          <p className="mt-2 text-slate-400">What do you want to master today?</p>
+          <h2 className="text-3xl font-regular tracking-tighter text-slate-900 serif">Start Your Journey</h2>
+          <p className="mt-2 text-slate-500 font-light">What do you want to master today?</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-              placeholder="e.g. Alex"
-              required
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {!initialUsername && (
+            <div>
+              <label className="block text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-widest">Username</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-5 py-4 bg-[#f8f9fa] border-none rounded-2xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 transition-all font-medium"
+                placeholder="e.g. Alex"
+                required
+              />
+            </div>
+          )}
           
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Learning Goal</label>
+            <label className="block text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-widest">Learning Goal</label>
             <textarea
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all h-32"
+              className="w-full px-5 py-4 bg-[#f8f9fa] border-none rounded-2xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 transition-all h-40 resize-none font-medium"
               placeholder="e.g. Fullstack Web Development with Next.js and Tailwind"
               required
             />
@@ -66,7 +68,7 @@ export default function Onboarding({ onSuccess }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
+            className="w-full py-5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-3 group shadow-xl hover:scale-[1.02] active:scale-95 disabled:opacity-50"
           >
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />

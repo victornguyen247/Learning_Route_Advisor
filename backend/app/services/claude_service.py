@@ -1,45 +1,62 @@
 import os
 import json
 import google.generativeai as genai
-from typing import List, Dict
+from typing import List, Dict, Optional
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # Configure Gemini API
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-flash-latest')
+model = genai.GenerativeModel('gemini-2.5-flash')
+#model_v3 = genai.GenerativeModel('gemini-3-flash-preview')
+model_v3 = genai.GenerativeModel('gemini-2.5-flash')
 
-class ClaudeService: # Keeping the name for compatibility with main.py, or I should rename it
+class ClaudeService:
     @staticmethod
-    def generate_learning_route(goal: str) -> List[Dict]:
+    def summarize_goal(goal: str) -> str:
         """
-        Generates a hierarchical learning route map for a given goal using Gemini.
+        Summarizes a long user goal into 1-3 keywords/role title.
+        """
+        prompt = f"Summarize this learning goal into a short, punchy 1-3 word title (e.g., 'Fullstack Dev', 'Python Pro'): \"{goal}\". Return ONLY the title text."
+        try:
+            response = model.generate_content(prompt)
+            return response.text.strip().replace('"', '')
+        except:
+            return goal[:30] # Fallback
+
+    @staticmethod
+    def generate_subtree(topic: str, main_goal: str, current_level: int, max_depth: int = 2) -> List[Dict]:
+        """
+        Generates a subtree for a specific topic with a limited depth.
         """
         prompt = f"""
-        Act as an expert educational advisor. Create a comprehensive, hierarchical learning route map for the following goal: "{goal}".
+        User Goal: "{main_goal}"
+        Current Topic to Expand: "{topic}" (at level {current_level})
         
-        CRITICAL HIERARCHY RULES:
-        1. PARENT NODES (Level 1 & 2): These must focus on the "Big Picture". Their descriptions should explain how the broad concepts connect and why they are important. Avoid specific tools or libraries here (e.g., describe "Frontend Fundamentals" rather than jumping into "React Hooks").
-        2. LEAF NODES (Deepest levels): these should be the specific, actionable skills or tools.
-        3. CONNECTION FLOW: Ensure that if topic A is a prerequisite for topic B, it is clearly represented in the hierarchy.
+        Act as an expert instructor. Continue building the learning path by expanding "{topic}" into more detailed sub-topics.
+        Generate exactly {max_depth} more levels of depth for this branch.
         
-        Return the result ONLY as a JSON array of objects. Each object must have:
-        - "title": (string) Short title of the topic.
-        - "description": (string) A summary. For parents, focus on conceptual connections. For leaves, focus on specific skills.
-        - "parent_title": (string or null) The title of the immediate prerequisite or parent topic.
-        - "level": (integer) Hierarchical level (1 for root, 2 for sub-topics, etc.).
+        RULES:
+        1. Hierarchical structure: level {current_level + 1} for immediate children, level {current_level + 2} for grandchildren.
+        2. Descriptions: Concise but informative.
+        3. Format: Return ONLY a JSON array of objects.
         
-        Limit your response to 8-12 nodes total to keep the map readable.
+        FIELDS:
+        - "title": (string)
+        - "description": (string)
+        - "parent_title": (string) MUST BE "{topic}" for immediate children, or the title of a level {current_level + 1} node for grandchildren.
+        - "level": (int) {current_level + 1} or {current_level + 2}.
+        - "is_leaf": (boolean) Set to true if this node is a specific, final skill or tool. Set to false if it's a category that could be expanded further (even if you don't expand it now).
+        
+        Limit to 4-6 nodes per prompt to stay focused.
         """
         
         try:
-            print(f"DEBUG: Calling Gemini with prompt for: {goal}", flush=True)
+            print(f"DEBUG: Generating subtree for: {topic} (Prompts used/remaining...)")
             response = model.generate_content(prompt)
             content = response.text
-            print(f"DEBUG: Gemini raw response: {content}", flush=True)
             
-            # Basic cleanup if Gemini adds markdown blocks
             if "```json" in content:
                 content = content.split("```json")[1].split("```")[0].strip()
             elif "```" in content:
@@ -47,92 +64,148 @@ class ClaudeService: # Keeping the name for compatibility with main.py, or I sho
                 
             start_idx = content.find("[")
             end_idx = content.rfind("]") + 1
+            if start_idx == -1 or end_idx == 0:
+                print(f"DEBUG WARNING: No JSON array found in response for {topic}")
+                return []
+                
             json_str = content[start_idx:end_idx]
             return json.loads(json_str)
         except Exception as e:
-            print(f"Error parsing Gemini response: {e}")
+            print(f"DEBUG ERROR: Subtree generation error for {topic}: {e}")
             return []
 
     @staticmethod
     def expand_topic(topic: str, goal_context: str) -> List[Dict]:
         """
-        Generates detailed sub-topics for a specific parent topic.
+        Phase 2/3: Expands a concept into its immediate sub-concepts.
+        If the topic is very specific (a 'leaf' skill) and has no meaningful sub-concepts, return [].
         """
         prompt = f"""
-        The user is learning "{goal_context}" and is currently looking at the topic "{topic}".
+        Objective: Expand "{topic}" within the learning journey for "{goal_context}".
         
-        Act as an expert instructor. Generate 3-5 specific, practical sub-topics that dive deeper into "{topic}".
-        These should be "leaf nodes" - actionable skills, specific tools, or detailed concepts.
+        Task: Identify 3-5 logical sub-concepts or building blocks for "{topic}". 
+        IMPORTANT: Use commonly shared concepts if they exist (e.g., both 'React' and 'Vue' might share 'State Management').
+        If "{topic}" is already a very specific tool or a single piece of information that is trivial to expand further, return an empty JSON array [].
         
-        Return the result ONLY as a JSON array of objects. Each object must have:
-        - "title": (string) Short title of the sub-topic.
-        - "description": (string) Brief explanation of this specific skill/concept.
-        
-        Example for "Frontend":
-        [
-          {{"title": "HTML5 Semantic Tags", "description": "Proper structure for SEO and accessibility"}},
-          {{"title": "CSS Grid & Flexbox", "description": "Modern layout techniques"}},
-          {{"title": "DOM Manipulation", "description": "Interacting with the page via JavaScript"}}
-        ]
+        Return ONLY a JSON array of objects.
+        Fields:
+        - "title": (string) Short name of the sub-concept.
+        - "description": (string) Brief 1-sentence overview.
+        - "is_expandable": (boolean) true if this sub-concept can be broken down further, false if it's a specific final skill.
         """
-        
         try:
-            print(f"DEBUG: Expanding topic: {topic}", flush=True)
             response = model.generate_content(prompt)
             content = response.text
-            print(f"DEBUG: Gemini raw expansion response: {content}", flush=True)
-            
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0].strip()
-            elif "```" in content:
-                content = content.split("```")[1].split("```")[0].strip()
-                
+            if "```json" in content: content = content.split("```json")[1].split("```")[0].strip()
             start_idx = content.find("[")
             end_idx = content.rfind("]") + 1
-            json_str = content[start_idx:end_idx]
-            return json.loads(json_str)
-        except Exception as e:
-            print(f"DEBUG ERROR: Gemini Expansion error: {str(e)}", flush=True)
+            if start_idx == -1: return []
+            return json.loads(content[start_idx:end_idx])
+        except:
+            return []
+
+    @staticmethod
+    def generate_learning_route(goal: str) -> List[Dict]:
+        """
+        Phase 1: Generate the Root and immediate high-level concept objects.
+        """
+        prompt = f"""
+        Act as an expert instructor. The user wants to learn: "{goal}".
+        
+        Phase 1: 
+        1. Define the ROOT node (the goal itself).
+        2. Identify the core "Majors" or "Concepts" (Level 2) that form the foundation for "{goal}".
+        
+        Return ONLY a JSON array of objects.
+        Fields:
+        - "title": (string)
+        - "description": (string)
+        - "parent_title": (string or null) - use null for the root.
+        - "level": (integer) 1 for root, 2 for concepts.
+        - "is_expandable": (boolean) always true for these concepts.
+        """
+        try:
+            response = model.generate_content(prompt)
+            content = response.text
+            if "```json" in content: content = content.split("```json")[1].split("```")[0].strip()
+            start_idx = content.find("[")
+            end_idx = content.rfind("]") + 1
+            return json.loads(content[start_idx:end_idx])
+        except:
             return []
 
     @staticmethod
     def get_resources_for_topic(topic: str, goal_context: str) -> List[Dict]:
-        """
-        Generates source links (YouTube, articles, etc.) for a specific topic using Gemini.
-        """
         prompt = f"""
-        For the topic "{topic}" in the context of learning "{goal_context}", provide 3-5 high-quality learning resources.
+        Act as a professional educational curator. Provide 3-5 high-quality, CURRENT, and ACCESSIBLE learning resources for the topic "{topic}" within the context of learning "{goal_context}".
         
-        GUIDELINE:
-        - If this is a high-level conceptual topic, prioritize big-picture overviews, architectural articles, and "How it works" videos.
-        - If this is a leaf node/specific tool, prioritize hands-on tutorials, documentation, and implementation guides.
+        CRITICAL LINK RULES:
+        1. VALIDITY: Only provide URLs that actually exist. Prioritize major platforms like YouTube, Official Documentation, Coursera, or reputable blogs (Medium, Dev.to).
+        2. ACCESS: Ensure the resources are free to access if possible, or very high-quality if paid.
+        3. VARIETY: Include a mix of videos, articles, and documentation.
         
-        Return the result ONLY as a JSON array of objects. Each object must have:
-        - "type": (string) e.g., "video", "article", "documentation".
-        - "title": (string) Title of the resource.
-        - "url": (string) Direct link to the resource.
-        - "description": (string) Brief summary of why this is useful.
+        Return ONLY a JSON array of objects.
+        Fields:
+        - "type": (string) "video", "article", or "documentation"
+        - "title": (string)
+        - "url": (string)
+        - "description": (string) Concise summary of the content.
         
-        Example:
+        Example Output Format:
         [
-          {{"type": "video", "title": "Intro to Variables", "url": "https://youtube.com/...", "description": "Great for beginners"}}
+          {{"type": "video", "title": "React Basics", "url": "https://youtube.com/...", "description": "..."}}
         ]
         """
-        
         try:
-            response = model.generate_content(prompt)
-            content = response.text
+            print(f"DEBUG: Fetching resources for topic: {topic}")
+            response = model_v3.generate_content(prompt)
+            content = response.text.strip()
+            
+            # More robust JSON cleaning
             if "```json" in content:
                 content = content.split("```json")[1].split("```")[0].strip()
             elif "```" in content:
                 content = content.split("```")[1].split("```")[0].strip()
-
+            
             start_idx = content.find("[")
             end_idx = content.rfind("]") + 1
+            if start_idx == -1 or end_idx == 0:
+                print(f"DEBUG ERROR: No JSON array found in resource response for {topic}. Content: {content[:200]}...")
+                return []
+                
             json_str = content[start_idx:end_idx]
-            return json.loads(json_str)
+            resources = json.loads(json_str)
+            print(f"DEBUG: Successfully found {len(resources)} resources for {topic}")
+            return resources
         except Exception as e:
-            print(f"DEBUG ERROR: Gemini API error: {str(e)}", flush=True)
-            import traceback
-            traceback.print_exc()
+            print(f"DEBUG ERROR: Resource generation failed for {topic}: {e}")
             return []
+
+    @staticmethod
+    def chat(messages: List[Dict], goal_context: str) -> str:
+        """
+        Chat with the user about their learning journey.
+        messages: list of {"role": "user/assistant", "content": "..."}
+        """
+        system_prompt = f"""
+        You are an expert Learning Advisor AI. Your goal is to help the user master: "{goal_context}".
+        Be encouraging, professional, and provide clear explanations. 
+        If they ask about a specific concept, explain it simply. 
+        Suggest next steps if they seem stuck.
+        Keep responses concise but insightful.
+        """
+        
+        # Convert messages to Gemini format
+        history = []
+        for msg in messages[:-1]:
+            history.append({"role": "user" if msg["role"] == "user" else "model", "parts": [msg["content"]]})
+        
+        last_message = messages[-1]["content"]
+        
+        try:
+            chat_session = model_v3.start_chat(history=history)
+            response = chat_session.send_message(f"System Context: {system_prompt}\n\nUser: {last_message}")
+            return response.text
+        except Exception as e:
+            print(f"DEBUG ERROR: Chat failed: {e}")
+            return "I'm sorry, I'm having trouble connecting to my brain right now. Can we try again?"

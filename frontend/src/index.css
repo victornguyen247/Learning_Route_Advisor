@@ -2,13 +2,13 @@
 @import "reactflow/dist/style.css";
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: light;
+  color: #1a1a1a;
+  background-color: #fdfaf3; /* Soft beige paper */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -18,12 +18,30 @@
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  background-color: #fdfaf3;
 }
 
 #root {
   width: 100%;
+}
+
+/* Custom Paper Texture / Style */
+.paper-texture {
+  background-image: url("https://www.transparenttextures.com/patterns/parchment.png");
+}
+
+.elegant-shadow {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.elegant-shadow:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transform: translateY(-2px);
+}
+
+.serif {
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }

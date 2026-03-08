@@ -1,87 +1,70 @@
-# Debugging Guide for hackAI2026
+# 🛠 Debugging Guide for Learning Route Advisor
 
-This guide provides instructions on how to debug and troubleshoot the `hackAI2026` project, covering both the FastAPI backend and React frontend.
-
----
-
-## Backend (FastAPI)
-
-The backend is built with FastAPI and uses SQLModel for database interactions.
-
-### 1. Running the Server Locally
-Make sure you are in the `backend` directory. If you are seeing "externally-managed-environment" errors, you may need to recreate your virtual environment:
-
-```bash
-cd backend
-# Remove old venv if it's broken
-rm -rf venv
-# Create a fresh one
-python3 -m venv venv
-```
-
-Activate the environment:
-```bash
-source venv/bin/activate  # On macOS/Linux
-```
-
-Install the dependencies using the venv's pip:
-```bash
-./venv/bin/pip install -r requirements.txt
-```
-
-Start the server with `uvicorn`:
-```bash
-python3 -m uvicorn app.main:app --reload
-```
-The `--reload` flag ensures the server restarts whenever you make changes to the code.
-
-### 2. Interactive API Documentation (Swagger)
-FastAPI provides a built-in interactive UI to test your endpoints:
-- Go to: [http://localhost:8000/docs](http://localhost:8000/docs)
-- You can trigger requests and see the exact JSON response and error messages.
-
-### 3. Database Inspection
-The app uses SQLite (`learning_advisor.db`).
-- Use a tool like **DB Browser for SQLite** or the VS Code extension **SQLite Viewer** to inspect the tables (`user`, `routemap`, `node`, `userprogress`).
-- If you need to reset the database, you can delete the `.db` file, and it will be recreated on the next startup.
-
-### 4. Common Backend Issues
-- **Missing Environment Variables**: Check that `.env` exists in the `backend/` root and contains your `ANTHROPIC_API_KEY`.
-- **Port Conflict**: If port 8000 is taken, use `uvicorn app.main:app --reload --port 8001`.
+This guide provides deep-dive instructions for troubleshooting, debugging, and maintaining the project.
 
 ---
 
-## Frontend (React + Vite)
+## 🐍 Backend (FastAPI + SQLModel)
 
-The frontend is a React application powered by Vite and Tailwind CSS.
+### 1. Interactive Docs & Testing
+FastAPI automatically generates a Swagger UI. This is your first stop for debugging API logic.
+- **URL**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Use Case**: Testing user registration, login, and roadmap generation without using the frontend.
 
-### 1. Running the Dev Server
-From the `frontend` directory:
-```bash
-cd frontend
-npm install  # If you haven't already
-npm run dev
-```
-By default, this runs on [http://localhost:5173](http://localhost:5173).
+### 2. Database Inspection (SQLite)
+The project uses `backend/learning_advisor.db`.
+- **SQL Logging**: In `backend/app/models.py`, `echo=True` is enabled. You can see the exact SQL queries being executed in your terminal logs.
+- **Resetting Data**: If your database state gets corrupted, simply delete `learning_advisor.db`. It will be recreated with a fresh schema when you restart the server.
+- **Tools**: Use [SQLite Viewer](https://marketplace.visualstudio.com/items?itemName=qwtel.sqlite-viewer) (VS Code) or [DB Browser for SQLite](https://sqlitebrowser.org/) to view the `node`, `routemap`, and `user` tables.
 
-### 2. Browser Developer Tools
-- **Console**: Check for JavaScript errors or failed network requests (CORS issues, 404s).
-- **Network Tab**: Ensure requests to `http://localhost:8000` are succeeding. Look at the "Response" tab for detailed error messages from FastAPI.
-- **React DevTools**: Highly recommended for inspecting component state and props (e.g., checking if the `nodes` are correctly passed to `ReactFlow`).
+### 3. AI & LLM Debugging (Gemini)
+The backend uses **Google Gemini 2.5 Flash** for roadmap generation and the chat agent.
+- **API Key**: Ensure `GEMINI_API_KEY` is set correctly in `backend/.env`.
+- **Latency**: Roadmap generation can take 5-10 seconds. Check the backend terminal for logs like `DEBUG: Generating subtree for...`.
+- **Chat Context**: The AI Advisor uses `ClaudeService.chat()`. If the advisor gives irrelevant answers, verify the `goal_context` being passed in `backend/app/main.py`.
 
-### 3. Common Frontend Issues
-- **Missing Vite Plugins**: If you see `Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@tailwindcss/vite'`, run:
-  ```bash
-  npm install @tailwindcss/vite@latest --save-dev
-  ```
-- **Styling Issues**: The project uses **Tailwind CSS**. If styles aren't appearing, ensure `npm run dev` is running.
+### 4. Common Backend Errors
+- **`404 Not Found`**: Usually happens if a username is passed as `null` or a `node_id` doesn't exist. Check the frontend request logs.
+- **`401 Unauthorized`**: Occurs when trying to login with an incorrect password. Note: The app currently uses plain-text password comparison (development only).
 
 ---
 
-## Troubleshooting Connectivity
+## ⚛️ Frontend (React + Vite)
 
-If the Frontend cannot talk to the Backend:
+### 1. Network Debugging
+- **Chrome DevTools (F12)** -> **Network Tab**.
+- Look for requests to `http://localhost:8000`. 
+- **CORS Issues**: If requests are blocked, ensure `CORSMiddleware` in `main.py` allows your frontend origin (`http://localhost:5173`).
 
-1. **Verify Backend Status**: Open [http://localhost:8000/docs](http://localhost:8000/docs). If it doesn't load, the backend is down.
-2. **CORS Errors**: If you see "Blocked by CORS policy" in the browser console, check `backend/app/main.py`. The `CORSMiddleware` configuration should allow the frontend origin.
-3. **API URL**: Ensure the frontend is calling the correct URL (usually `http://localhost:8000`).
+### 2. ReactFlow Visuals
+The roadmap uses `MapCanvas.jsx`.
+- **Spectral Colors**: Arrows are color-coded by node level using a spectral palette. Logic is in `MapCanvas.jsx`.
+- **Node Position**: If nodes overlap, check the `calculateLayout` logic or the `subLevel` offsets.
+
+### 3. UI State (Landing & Profile)
+- **Auth Sync**: The `Landing.jsx` component manages local view states (`dashboard`, `profile`, `login`). 
+- **Sign Out Fix**: If the app stays on the dashboard after logout, ensure `setView('login')` is called inside the `useEffect` that tracks `initialUser`.
+
+---
+
+## 🏗 Common Troubleshooting Scenarios
+
+### Scenario A: Frontend loads but no maps show up.
+1. Check the Network tab. Is `GET /users/{username}/route-maps` returning an empty array?
+2. Check the Backend console. Are there SQLite errors?
+3. Verify you are logged in with the correct username.
+
+### Scenario B: "+ Clone" button does nothing.
+1. Check if the roadmap being cloned is marked as Public (`is_public: true`).
+2. Verify the backend console for `IntegrityError` (Unique constraints).
+
+### Scenario C: AI Advisor says "I'm having trouble connecting".
+1. Check `backend/.env` for a valid API Key.
+2. Ensure the backend is running.
+3. Check the backend terminal for `google.api_core.exceptions`.
+
+---
+
+## 📈 Performance Tips
+- Use `npm run build` to test the production bundle if the dev server feels slow.
+- Keep the `learning_advisor.db` small; excessive node data can slow down initial roadmap loads.
