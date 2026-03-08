@@ -9,11 +9,11 @@ load_dotenv()
 # Configure Gemini API
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-2.5-flash')
-#model_v3 = genai.GenerativeModel('gemini-3-flash-preview')
-model_v3 = genai.GenerativeModel('gemini-2.5-flash')
+model_v3 = genai.GenerativeModel('gemini-3.1-pro-preview')
+#model_v3 = genai.GenerativeModel('gemini-2.5-flash')
 
 class ClaudeService:
-    @staticmethod
+    @staticmethod2
     def summarize_goal(goal: str) -> str:
         """
         Summarizes a long user goal into 1-3 keywords/role title.

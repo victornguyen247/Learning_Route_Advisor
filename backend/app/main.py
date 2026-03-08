@@ -439,6 +439,76 @@ def get_node_resources(node_id: int, username: Optional[str] = None, session: Se
         
     return resources
 
+@app.post("/nodes/{node_id}/refresh-resources")
+def refresh_node_resources(node_id: int, username: Optional[str] = None, session: Session = Depends(get_session)):
+    node = session.get(Node, node_id)
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    
+    # Force fetch from LLM
+    route_map = session.get(RouteMap, node.route_map_id)
+    print(f"DEBUG: Refreshing resources for {node.title}...", flush=True)
+    resources = ClaudeService.get_resources_for_topic(node.title, route_map.goal)
+    
+    # Check for aliveness
+    for res in resources:
+        if res.get("type", "").lower() == "video":
+            try:
+                headers = {"User-Agent": "Mozilla/5.0"}
+                head_res = requests.head(res.get("url"), headers=headers, timeout=3, allow_redirects=True)
+                res["is_alive"] = head_res.status_code < 400 or head_res.status_code == 405
+            except:
+                res["is_alive"] = False
+        else:
+            res["is_alive"] = True
+
+    node.resources_json = json.dumps(resources)
+    session.add(node)
+    session.commit()
+    session.refresh(node)
+    
+    # Check user progress for these resources
+    completed_urls = []
+    if username:
+        user_stmt = select(User).where(User.username == username)
+        user = session.exec(user_stmt).first()
+        if user:
+            prog_stmt = select(UserProgress).where(UserProgress.node_id == node_id, UserProgress.user_id == user.id)
+            progress = session.exec(prog_stmt).first()
+            if progress and progress.completed_resources_json:
+                completed_urls = json.loads(progress.completed_resources_json)
+    
+    for res in resources:
+        res["is_completed"] = res.get("url") in completed_urls
+        
+    return resources
+
+@app.post("/nodes/{node_id}/add-resource")
+def add_custom_resource(node_id: int, title: str, url: str, type: str, session: Session = Depends(get_session)):
+    node = session.get(Node, node_id)
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    
+    current_resources = json.loads(node.resources_json or "[]")
+    
+    new_resource = {
+        "title": title,
+        "url": url,
+        "type": type.lower(),
+        "description": "User added resource",
+        "is_alive": True # Assume alive for user-added
+    }
+    
+    # Add to the TOP of the list
+    current_resources.insert(0, new_resource)
+    
+    node.resources_json = json.dumps(current_resources)
+    session.add(node)
+    session.commit()
+    session.refresh(node)
+    
+    return current_resources
+
 @app.post("/nodes/{node_id}/toggle-resource")
 def toggle_resource_complete(node_id: int, username: str, resource_url: str, session: Session = Depends(get_session)):
     user_stmt = select(User).where(User.username == username)

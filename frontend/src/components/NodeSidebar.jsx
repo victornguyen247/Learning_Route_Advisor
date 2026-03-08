@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { X, CheckCircle, ExternalLink, Loader2, PlayCircle, BookOpen, Clock, Youtube, FileText, AlertCircle, Check } from 'lucide-react';
+import { X, CheckCircle, ExternalLink, Loader2, PlayCircle, BookOpen, Clock, Youtube, FileText, AlertCircle, Check, RotateCw, Plus, ArrowRight } from 'lucide-react';
 
 const API_BASE = 'http://localhost:8000';
 
@@ -10,6 +10,52 @@ export default function NodeSidebar({ node, username, isCompleted, onClose, onUp
   const [isExpanded, setIsExpanded] = useState(false);
   const [resources, setResources] = useState([]);
   const [loadingRes, setLoadingRes] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Custom Resource State
+  const [newResTitle, setNewResTitle] = useState('');
+  const [newResUrl, setNewResUrl] = useState('');
+  const [newResType, setNewResType] = useState('article');
+  const [addingRes, setAddingRes] = useState(false);
+
+  const handleAddResource = async (e) => {
+    e.preventDefault();
+    if (!newResTitle || !newResUrl) return;
+    setAddingRes(true);
+    try {
+      const res = await axios.post(`${API_BASE}/nodes/${node.id}/add-resource`, null, {
+        params: { title: newResTitle, url: newResUrl, type: newResType }
+      });
+      console.log("DEBUG: Custom resource added:", res.data);
+      setResources(res.data);
+      setNewResTitle('');
+      setNewResUrl('');
+    } catch (err) {
+      console.error("Failed to add resource", err);
+      alert("Failed to add resource.");
+    } finally {
+      setAddingRes(false);
+    }
+  };
+
+  const handleRefreshResources = async (e) => {
+    if (e) e.stopPropagation();
+    setRefreshing(true);
+    try {
+      const res = await axios.post(`${API_BASE}/nodes/${node.id}/refresh-resources`, null, {
+        params: { username }
+      });
+      console.log("DEBUG: Resources refreshed:", res.data);
+      setResources(res.data);
+      // Ensure details are expanded to show the new ones
+      if (!isExpanded) setIsExpanded(true);
+    } catch (err) {
+      console.error("Failed to refresh resources", err);
+      alert("Failed to refresh resources. Please try again.");
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const toggleComplete = async () => {
     setActionLoading(true);
@@ -77,14 +123,32 @@ export default function NodeSidebar({ node, username, isCompleted, onClose, onUp
 
   return (
     <div className={`absolute top-24 right-6 bottom-6 bg-[#fdfaf3] border border-[#dee2e6] rounded-2xl shadow-xl z-20 flex flex-col overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? 'left-6 w-auto' : 'w-[420px]'} animate-in slide-in-from-right`}>
-      <div className="p-8 border-b border-[#dee2e6] flex justify-between items-start bg-white/50 backdrop-blur-sm">
-        <div>
+      <div className="p-8 border-b border-[#dee2e6] flex justify-between items-start bg-white/50 backdrop-blur-sm relative">
+        <div className="flex flex-col">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Topic Overview</span>
           <h3 className="text-3xl font-regular tracking-tight text-slate-900 mt-2 serif">{node.title}</h3>
         </div>
-        <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-          <X className="w-5 h-5 text-slate-500" />
-        </button>
+        
+        <div className="flex flex-col items-center gap-4">
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+            <X className="w-5 h-5 text-slate-500" />
+          </button>
+          
+          {isExpanded && (
+            <button 
+                  onClick={handleRefreshResources} 
+                  disabled={refreshing || loadingRes}
+                  className={`p-3 rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 group border ${
+                    refreshing 
+                    ? 'bg-blue-50 border-blue-200 text-blue-600' 
+                    : 'bg-white border-slate-200 text-slate-400 hover:text-slate-900 hover:border-slate-300'
+                  }`}
+                  title="Regenerate resources"
+            >
+              <RotateCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
@@ -147,7 +211,17 @@ export default function NodeSidebar({ node, username, isCompleted, onClose, onUp
 
           {/* Right Column: Learning Resources (only visible when expanded) */}
           {isExpanded && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-right duration-500">
+            <div className="relative">
+              {refreshing && (
+                  <div className="absolute inset-0 z-30 bg-white/40 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center space-y-4 animate-in fade-in duration-300">
+                      <div className="p-4 bg-white rounded-2xl shadow-xl ring-1 ring-slate-100">
+                          <Loader2 className="w-8 h-8 animate-spin text-slate-900" />
+                      </div>
+                      <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest bg-white/80 px-4 py-2 rounded-full shadow-sm">Overwriting with new results...</p>
+                  </div>
+              )}
+
+              <div className={`space-y-8 animate-in fade-in slide-in-from-right duration-500 transition-opacity duration-300 ${refreshing ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
               {loadingRes ? (
                 <div className="h-64 flex flex-col items-center justify-center text-slate-500 space-y-4">
                   <Loader2 className="w-8 h-8 animate-spin text-slate-900" />
@@ -249,9 +323,67 @@ export default function NodeSidebar({ node, username, isCompleted, onClose, onUp
                       )}
                     </div>
                   </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-slate-900 mb-8 flex items-center gap-3">
+                      <div className="p-2 bg-slate-100 rounded-lg">
+                        <Plus className="w-5 h-5 text-slate-800" />
+                      </div>
+                      Custom Content
+                    </h4>
+                    <form onSubmit={handleAddResource} className="bg-white border border-[#dee2e6] rounded-2xl p-6 space-y-4 shadow-sm">
+                        <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Title</label>
+                            <input 
+                                type="text"
+                                value={newResTitle}
+                                onChange={(e) => setNewResTitle(e.target.value)}
+                                placeholder="e.g. Masterclass by expert"
+                                className="w-full px-4 py-3 bg-[#f8f9fa] border-none rounded-xl text-sm focus:ring-2 focus:ring-slate-200 transition-all font-medium"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">URL</label>
+                            <input 
+                                type="url"
+                                value={newResUrl}
+                                onChange={(e) => setNewResUrl(e.target.value)}
+                                placeholder="https://..."
+                                className="w-full px-4 py-3 bg-[#f8f9fa] border-none rounded-xl text-sm focus:ring-2 focus:ring-slate-200 transition-all font-medium"
+                                required
+                            />
+                        </div>
+                        <div className="flex gap-4">
+                            <div className="flex-1">
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Category</label>
+                                <select 
+                                    value={newResType}
+                                    onChange={(e) => setNewResType(e.target.value)}
+                                    className="w-full px-4 py-3 bg-[#f8f9fa] border-none rounded-xl text-sm focus:ring-2 focus:ring-slate-200 transition-all font-medium appearance-none cursor-pointer"
+                                >
+                                    <option value="article">Article / Doc</option>
+                                    <option value="video">YouTube / Video</option>
+                                </select>
+                            </div>
+                            <button 
+                                type="submit"
+                                disabled={addingRes}
+                                className="mt-6 px-6 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-2 group disabled:opacity-50"
+                            >
+                                {addingRes ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                                    <>
+                                        Add
+                                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </form>
+                  </div>
                 </>
               )}
             </div>
+          </div>
           )}
         </div>
       </div>
