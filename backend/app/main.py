@@ -112,6 +112,35 @@ def get_route_nodes(route_id: int, session: Session = Depends(get_session)):
     nodes = session.exec(statement).all()
     return nodes
 
+@app.post("/nodes/{node_id}/expand")
+def expand_node(node_id: int, session: Session = Depends(get_session)):
+    node = session.get(Node, node_id)
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    
+    route_map = session.get(RouteMap, node.route_map_id)
+    
+    # Generate sub-nodes
+    raw_sub_nodes = ClaudeService.expand_topic(node.title, route_map.goal)
+    
+    new_nodes = []
+    for rn in raw_sub_nodes:
+        sub_node = Node(
+            route_map_id=node.route_map_id,
+            title=rn["title"],
+            description=rn["description"],
+            level=node.level + 1,
+            parent_id=node.id
+        )
+        session.add(sub_node)
+        new_nodes.append(sub_node)
+    
+    session.commit()
+    for n in new_nodes:
+        session.refresh(n)
+        
+    return new_nodes
+
 @app.get("/nodes/{node_id}/resources")
 def get_node_resources(node_id: int, session: Session = Depends(get_session)):
     node = session.get(Node, node_id)

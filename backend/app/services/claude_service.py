@@ -54,6 +54,48 @@ class ClaudeService: # Keeping the name for compatibility with main.py, or I sho
             return []
 
     @staticmethod
+    def expand_topic(topic: str, goal_context: str) -> List[Dict]:
+        """
+        Generates detailed sub-topics for a specific parent topic.
+        """
+        prompt = f"""
+        The user is learning "{goal_context}" and is currently looking at the topic "{topic}".
+        
+        Act as an expert instructor. Generate 3-5 specific, practical sub-topics that dive deeper into "{topic}".
+        These should be "leaf nodes" - actionable skills, specific tools, or detailed concepts.
+        
+        Return the result ONLY as a JSON array of objects. Each object must have:
+        - "title": (string) Short title of the sub-topic.
+        - "description": (string) Brief explanation of this specific skill/concept.
+        
+        Example for "Frontend":
+        [
+          {{"title": "HTML5 Semantic Tags", "description": "Proper structure for SEO and accessibility"}},
+          {{"title": "CSS Grid & Flexbox", "description": "Modern layout techniques"}},
+          {{"title": "DOM Manipulation", "description": "Interacting with the page via JavaScript"}}
+        ]
+        """
+        
+        try:
+            print(f"DEBUG: Expanding topic: {topic}", flush=True)
+            response = model.generate_content(prompt)
+            content = response.text
+            print(f"DEBUG: Gemini raw expansion response: {content}", flush=True)
+            
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0].strip()
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0].strip()
+                
+            start_idx = content.find("[")
+            end_idx = content.rfind("]") + 1
+            json_str = content[start_idx:end_idx]
+            return json.loads(json_str)
+        except Exception as e:
+            print(f"DEBUG ERROR: Gemini Expansion error: {str(e)}", flush=True)
+            return []
+
+    @staticmethod
     def get_resources_for_topic(topic: str, goal_context: str) -> List[Dict]:
         """
         Generates source links (YouTube, articles, etc.) for a specific topic using Gemini.
