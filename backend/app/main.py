@@ -299,7 +299,7 @@ def onboarding(username: str, goal: str, session: Session = Depends(get_session)
                 title=rn["title"],
                 description=rn["description"],
                 level=rn["level"],
-                is_expandable=rn.get("is_expandable", True)
+                is_expandable=rn.get("is_expandable", False)
             )
             session.add(node)
             session.commit()
