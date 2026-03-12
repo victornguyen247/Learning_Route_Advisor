@@ -16,7 +16,7 @@ An elegant, AI-powered platform for generating and tracking personalized learnin
 ### Backend
 - **Framework**: [FastAPI](https://fastapi.tiangolo.com/) (Python)
 - **Database**: [SQLModel](https://sqlmodel.tiangolo.com/) (SQLAlchemy + Pydantic)
-- **AI Engine**: [Google Gemini 2.5 Flash](https://ai.google.dev/)
+- **AI Engine**: [Google Gemini 2.5 Flash,Google Gemini 3 pro](https://ai.google.dev/)
 - **API**: RESTful architecture with automatic Swagger documentation.
 
 ### Frontend
@@ -64,40 +64,42 @@ npm run dev
 ### 1. Create Your First Roadmap
 When you log in for the first time, you'll be greeted by the Onboarding screen. Simply describe what you want to learn (e.g., "I want to become a Full-Stack Web Developer" or "Learn the basics of Machine Learning"). Our AI will generate a personalized roadmap customized to your goals.
 
-> *(Placeholder for Onboarding Screen Image)*
-> `![Onboarding Screen](path/to/your/image.png)`
+<img width="1147" height="698" alt="Screenshot 2026-03-12 at 10 29 59 AM" src="https://github.com/user-attachments/assets/540af59c-a307-40d7-b502-8f83cc33a914" />
+<img width="1148" height="694" alt="Screenshot 2026-03-12 at 10 31 01 AM" src="https://github.com/user-attachments/assets/3fd2cc2b-6c0d-423b-b2f5-4b37e68d204d" />
+
+
 
 ### 2. Navigate the Interactive Mind Map
 Your generated learning path is displayed as a beautiful, interactive node graph. 
 - **Zoom & Pan**: Use your mouse or trackpad to explore the canvas.
 - **Node Status**: Nodes represent topics. Gray nodes are locked until you complete prerequisites. Blue nodes are ready to learn. Green nodes are completed.
 
-> *(Placeholder for Interactive Map Image)*
-> `![Interactive Map View](path/to/your/image.png)`
+<img width="1149" height="694" alt="Screenshot 2026-03-12 at 10 44 39 AM" src="https://github.com/user-attachments/assets/5030eee6-c252-402b-bb54-32231f657f86" />
+
 
 ### 3. Expand Topics
 If a topic is broad, click **"Expand"** in the sidebar. The AI will break it down into smaller, more manageable sub-topics and dynamically add them to your map, allowing you to dive as deep as you need into specific concepts.
 
-> *(Placeholder for Expanding Nodes Image)*
-> `![Expanding Nodes Highlight](path/to/your/image.png)`
+<img width="1147" height="693" alt="Screenshot 2026-03-12 at 10 35 31 AM" src="https://github.com/user-attachments/assets/b23c580c-d50c-4728-884e-6cccf8585515" />
+
 
 ### 4. Discover Learning Resources
 Clicking on any unlocked node opens the **Resource Sidebar**. The AI automatically curates the best web resources (YouTube videos, official documentation, articles) specifically tailored to that node's topic. You can also add your own custom resources.
 
-> *(Placeholder for Resource Sidebar Image)*
-> `![Resource Sidebar with Links](path/to/your/image.png)`
+<img width="1148" height="693" alt="Screenshot 2026-03-12 at 10 37 45 AM" src="https://github.com/user-attachments/assets/c542bcb3-cee6-4610-8404-07fca4c57e4c" />
+
 
 ### 5. Chat with the AI Advisor
 Stuck on a concept? Need curriculum advice? Click the **Chat window** in the bottom right corner to talk directly to your personalized Learning Advisor AI. It has context on your current goal and can guide you through difficult topics.
 
-> *(Placeholder for AI Advisor Chat Image)*
-> `![AI Chat Window](path/to/your/image.png)`
+<img width="1148" height="694" alt="Screenshot 2026-03-12 at 10 38 26 AM" src="https://github.com/user-attachments/assets/5f0d22eb-b55d-4b55-9c73-8ab747a91781" />
+
 
 ### 6. Explore Community Maps
 Looking for inspiration? Use the top navigation bar to search for other users by username. You can view their public roadmaps and hit the **Clone** button to copy their learning journey to your own dashboard.
 
-> *(Placeholder for Community Maps/Search Image)*
-> `![Searching and Cloning Maps](path/to/your/image.png)`
+<img width="1148" height="697" alt="Screenshot 2026-03-12 at 10 39 19 AM" src="https://github.com/user-attachments/assets/ab009195-dd22-4ff5-b047-c7615a69627d" />
+
 
 ---
 
